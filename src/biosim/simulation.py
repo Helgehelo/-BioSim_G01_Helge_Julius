@@ -25,6 +25,49 @@ _CONVERT_BINARY = r'C:\Program Files\ImageMagick-7.0.9-Q16\magick.exe'
 
 
 class BioSim:
+    """Simulation class for the ecosystem on the island.
+
+    Parameters
+    ----------
+    island_map: string
+        Multi-line string specifying island geography.
+    ini_pop: list
+        List of dictionaries specifying initial population.
+    seed: int
+        Integer used as random number seed.
+    ymax_animals: float?
+        Number specifying y-axis limit for graph showing animal numbers.
+    cmax_animals: dict
+        Dict specifying color-code limits for animal densities.
+    img_base: string
+        String with beginning of file name for figures, including path.
+    img_fmt: string
+        String with file type for figures, e.g. 'png'.
+
+    Attributes
+    ----------
+    island_map : string
+        Multi-line string specifying island geography with removed whitespace.
+    island : Island
+        Island class instance with island_map and ini_pop parameters as input.
+    year : int
+        The year the simulation is simulating.
+
+
+    If ymax_animals is None, the y-axis limit should be adjusted automatically.
+
+    If cmax_animals is None, sensible, fixed default values should be used.
+    cmax_animals is a dict mapping species names to numbers, e.g.,
+    {'Herbivore': 50, 'Carnivore': 20}
+
+    If img_base is None, no figures are written to file.
+    Filenames are formed as
+
+        '{}_{:05d}.{}'.format(img_base, img_no, img_fmt)
+
+    where img_no are consecutive image numbers starting from 0.
+    img_base should contain a path and beginning of a file name.
+    """
     def __init__(
         self,
         island_map,
@@ -35,31 +78,9 @@ class BioSim:
         img_base=None,
         img_fmt="png",
     ):
-        """
-        :param island_map: Multi-line string specifying island geography
-        :param ini_pop: List of dictionaries specifying initial population
-        :param seed: Integer used as random number seed
-        :param ymax_animals: Number specifying y-axis limit for graph showing animal numbers
-        :param cmax_animals: Dict specifying color-code limits for animal densities
-        :param img_base: String with beginning of file name for figures, including path
-        :param img_fmt: String with file type for figures, e.g. 'png'
 
-        If ymax_animals is None, the y-axis limit should be adjusted automatically.
-
-        If cmax_animals is None, sensible, fixed default values should be used.
-        cmax_animals is a dict mapping species names to numbers, e.g.,
-           {'Herbivore': 50, 'Carnivore': 20}
-
-        If img_base is None, no figures are written to file.
-        Filenames are formed as
-
-            '{}_{:05d}.{}'.format(img_base, img_no, img_fmt)
-
-        where img_no are consecutive image numbers starting from 0.
-        img_base should contain a path and beginning of a file name.
-        """
-        np.random.seed(seed)
         random.seed(seed)
+        np.random.seed(seed)
         island_map = textwrap.dedent(island_map)
         self._island_map = island_map
         self._island = Island(island_map, ini_pop=ini_pop)
@@ -69,7 +90,7 @@ class BioSim:
         self._cmax_animals = cmax_animals
         self._img_base = img_base
         self._img_fmt = img_fmt
-        self._img_pause_time = 1e-6
+        self._img_pause_time = 1e-20
         # the following will be initialized by _setup_graphics
         self._fig = None
         self._map_ax = None
@@ -88,14 +109,22 @@ class BioSim:
         self._island_text_ax = None
         self._pause_ax = None
         self._pause_widget = None
-
+        self._large_island = None
 
     def set_animal_parameters(self, species, params):
-        """
-        Set parameters for animal species.
+        """Sets parameters for animal species.
 
-        :param species: String, name of animal species
-        :param params: Dict with valid parameter specification for species
+        Parameters
+        ----------
+        species : string
+            Animal of a given species.
+        params : dict
+            New parameters to be set for the animal species.
+        Raises
+        ------
+        ValueError:
+            If the species does not exist.
+
         """
         if species == "Herbivore":
             h = Herb()
@@ -105,12 +134,21 @@ class BioSim:
             c.set_parameters(params)
         else:
             raise ValueError(f'Got non existing species {species} ')
-    def set_landscape_parameters(self, landscape, params):
-        """
-        Set parameters for landscape type.
 
-        :param landscape: String, code letter for landscape
-        :param params: Dict with valid parameter specification for landscape
+    def set_landscape_parameters(self, landscape, params):
+        """Sets parameters for landscape type.
+
+        Parameters
+        ----------
+        landscape : string
+            Landscape of a given type.
+        params : dict
+            New parameters to be set for given landscape.
+        Raises
+        ------
+        ValueError
+            If the given landscape type doesn't exist.
+
         """
         if landscape == "J":
             j = Jungle()
@@ -123,14 +161,19 @@ class BioSim:
                              f' updated. Got landscape {landscape}')
 
     def simulate(self, num_years, vis_years=1, img_years=None):
-        """
-        Run simulation while visualizing the result.
+        """Run simulation while visualizing the result.
 
-        :param num_years: number of years to simulate
-        :param vis_years: years between visualization updates
-        :param img_years: years between visualizations saved to files (default: vis_years)
-
-        Image files will be numbered consecutively.
+        Parameters
+        ----------
+        num_years: int
+            number of years to simulate
+        vis_years: int
+            years between visualization updates
+        img_years: int
+            years between visualizations saved to files (default: vis_years)
+        Notes
+        -----
+            Image files will be numbered consecutively.
         """
 
         start_year = self._year
@@ -142,7 +185,7 @@ class BioSim:
             self._island.one_year()
             self._year += 1
             if vis_years:
-                if img_years == None:
+                if img_years is None:
                     img_years = vis_years
                 if self.year % vis_years == 0:
                     self._update_graphics()
@@ -150,44 +193,53 @@ class BioSim:
                     self._save_graphics()
                 plt.pause(self._img_pause_time)
 
-
-
             while self._paused:
                 plt.pause(0.05)
 
     def add_population(self, population):
-        self._island.add_population(population)
+        """Adds a population of animals to a given location on the island.
 
+        Parameters
+        ----------
+        population : dict
+            Dictionary with animals of given location and population.
+        """
+        self._island.add_population(population)
 
     @property
     def year(self):
-        """Last year simulated."""
+        """Last year simulated.
+        """
         return self._year
-
 
     @property
     def num_animals(self):
-        """Total number of animals on island."""
+        """Total number of animals on island.
+        """
         return self._island.count_animals()[2]
 
     @property
     def num_animals_per_species(self):
-        """Number of animals per species in island, as dictionary."""
+        """Number of animals per species in island, as dictionary.
+        """
         herbivore_count, carnivore_count = self._island.count_animals()[:2]
-        num_animals_dict = {"Herbivore":herbivore_count, "Carnivore":carnivore_count}
+        num_animals_dict = {"Herbivore": herbivore_count, "Carnivore": carnivore_count}
         return num_animals_dict
+
     @property
     def animal_distribution(self):
-        """Pandas DataFrame with animal count per species for each cell on island."""
+        """Pandas DataFrame with animal count per species for each cell on island.
+        """
         animal_count_list = self._island.animals_on_square()
         pd_data = pd.DataFrame(data=animal_count_list, columns=['Row', 'Col', 'Herbivore', 'Carnivore'])
         return pd_data
+
     def make_movie(self, movie_fmt="mp4"):
-        """
-        Creates MPEG4 movie from visualization images saved.
-        .. :note:
+        """Creates MPEG4 movie from visualization images saved.
+        Notes
+        -----
             Requires ffmpeg
-        The movie is stored as img_base + movie_fmt
+            The movie is stored as img_base + movie_fmt
         """
 
         if self._img_base is None:
@@ -221,6 +273,8 @@ class BioSim:
             raise ValueError('Unknown movie format: ' + movie_fmt)
 
     def _setup_graphics(self):
+        """ Sets up the graphic window.
+        """
         if self._fig is None:
             self._fig = plt.figure(figsize=(15, 9))
         if self._animal_lines_ax is None:
@@ -234,6 +288,9 @@ class BioSim:
         # year axis limit on plot needs to updated when you run multiple
         # multiple simulations after each other
         self._animal_lines_ax.set_xlim(0, self._final_year+1)
+
+        if (self._island.map_columns or self._island.map_rows) > 23:
+            self._large_island = True
 
         if self._herb_line is None:
             # Creates plot object with no y-values that has the correct length,
@@ -284,20 +341,32 @@ class BioSim:
             self._cmax_carn = self._cmax_animals["Carnivore"]
 
         if self._herb_map_ax is None:
-            self._herb_map_ax = self._fig.add_axes([0.05, 0.35, 0.25, 0.25])
-            self._herb_map_ax.set_xticks(range(1 + self._island.map_columns))
-            self._herb_map_ax.set_xticklabels(range(1 + self._island.map_columns))
-            self._herb_map_ax.set_yticks(range(1 + self._island.map_rows))
-            self._herb_map_ax.set_yticklabels(range(1 + self._island.map_rows))
+            self._herb_map_ax = self._fig.add_axes([0.05, 0.37, 0.25, 0.25])
+            if self._large_island:
+                self._herb_map_ax.set_xticks((0, self._island.map_columns-1))
+                self._herb_map_ax.set_xticklabels((0, self._island.map_columns-1))
+                self._herb_map_ax.set_yticks((0, self._island.map_rows-1))
+                self._herb_map_ax.set_yticklabels((0, self._island.map_rows-1))
+            else:
+                self._herb_map_ax.set_xticks(range(self._island.map_columns))
+                self._herb_map_ax.set_xticklabels(range(self._island.map_columns))
+                self._herb_map_ax.set_yticks(range(self._island.map_rows))
+                self._herb_map_ax.set_yticklabels(range(self._island.map_rows))
             self._herb_map_ax.set_title("Herbivore distribution")
 
         if self._carn_map_ax is None:
             self._carn_map_ax = self._fig.add_axes([0.05, 0.05, 0.25, 0.25])
-            self._carn_map_ax.set_xticks(range(1 + self._island.map_columns ))
-            self._carn_map_ax.set_xticklabels(range(1 + self._island.map_columns ))
-            self._carn_map_ax.set_yticks(range(1 + self._island.map_rows))
-            self._carn_map_ax.set_yticklabels(range(1 + self._island.map_rows ))
-            self._carn_map_ax.set_title("Carnivore distribution")
+            if self._large_island:
+                self._carn_map_ax.set_xticks((0, self._island.map_columns-1))
+                self._carn_map_ax.set_xticklabels((0, self._island.map_columns-1))
+                self._carn_map_ax.set_yticks((0, self._island.map_rows-1))
+                self._carn_map_ax.set_yticklabels((0, self._island.map_rows-1))
+            else:
+                self._carn_map_ax.set_xticks(range(self._island.map_columns ))
+                self._carn_map_ax.set_xticklabels(range(self._island.map_columns))
+                self._carn_map_ax.set_yticks(range(self._island.map_rows))
+                self._carn_map_ax.set_yticklabels(range(self._island.map_rows))
+                self._carn_map_ax.set_title("Carnivore distribution")
 
         if self._island_map_ax is None:
             rgb_value = {'O': (0.0, 0.0, 1.0),  # blue
@@ -309,10 +378,16 @@ class BioSim:
                         for row in self._island_map.splitlines()]
             island_rgb = np.array(island_rgb)
             self._island_map_ax = self._fig.add_axes([0.05, 0.7, 0.25, 0.25])  # llx, lly, w, h
-            self._island_map_ax.set_xticks(range(self._island.map_columns + 1))
-            self._island_map_ax.set_xticklabels(range(self._island.map_columns + 1))
-            self._island_map_ax.set_yticks(range(self._island.map_rows+1))
-            self._island_map_ax.set_yticklabels(range( self._island.map_rows+1))
+            if self._large_island:
+                self._island_map_ax.set_xticks((0, self._island.map_columns - 1))
+                self._island_map_ax.set_xticklabels((0, self._island.map_columns - 1))
+                self._island_map_ax.set_yticks((0, self._island.map_rows - 1))
+                self._island_map_ax.set_yticklabels((0, self._island.map_rows - 1))
+            else:
+                self._island_map_ax.set_xticks(range(self._island.map_columns))
+                self._island_map_ax.set_xticklabels(range(self._island.map_columns))
+                self._island_map_ax.set_yticks(range(self._island.map_rows))
+                self._island_map_ax.set_yticklabels(range(self._island.map_rows))
             self._island_map_ax.imshow(island_rgb)
             self._island_map_ax.set_title("Island map")
             map_rect = self._fig.add_axes([0.31, 0.7, 0.25, 0.25])  # llx, lly, w, h
@@ -325,7 +400,7 @@ class BioSim:
                map_rect.text(0.12, ix * 0.2, name, transform=map_rect.transAxes)
 
         if self._island_text_ax is None:
-            self._island_text_ax = self._fig.add_axes([0.35, 0.3, 0.25, 0.25])
+            self._island_text_ax = self._fig.add_axes([0.48, 0.5, 0, 0])
             self._island_text_ax.axis('off')
             self._island_text_values = 'Year: {}     ' \
                                     'Total Animals: {}     ' \
@@ -344,7 +419,7 @@ class BioSim:
 
         if self._pause_ax is None:
             self._paused = False
-            self._pause_ax = self._fig.add_axes([0.8, 0.10, 0.15, 0.15])
+            self._pause_ax = self._fig.add_axes([0.6, 0.10, 0.3, 0.15])
             self._pause_widget = Button(self._pause_ax, 'Pause/Run', hovercolor='0.5')
             self._pause_widget.on_clicked(self._pause_button_click)
 
@@ -362,12 +437,24 @@ class BioSim:
             self.num_animals_per_species['Carnivore']))
 
     def _pause_button_click(self, event):
+        """ ?
+
+        Parameters
+        ----------
+        event : ?
+
+        Returns
+        -------
+
+        """
         if self._paused:
             self._paused = False
         else:
             self._paused = True
 
     def _update_animal_lines(self):
+        """ Updates the animal lines in the graphics.
+        """
         if self._ymax_animals is None:
             # Saves number of animals in a variable so that property num_animals dont need to be called multiple times
             number_of_animals = self.num_animals
@@ -381,10 +468,12 @@ class BioSim:
         self._carn_line.set_ydata(ydata_carn)
 
     def _update_animal_heat_maps(self):
+        """Updates the animal heat maps in the graphics.
+        """
 
         if self._herb_map is not None:
             self._herb_map.set_data(np.reshape(self.animal_distribution['Herbivore'].values,
-                                                     newshape=(self._island.map_rows, self._island.map_columns)))
+                newshape=(self._island.map_rows, self._island.map_columns)))
         else:
             self._herb_map = self._herb_map_ax.imshow(np.reshape(self.animal_distribution[
                                                                      'Herbivore'].values,
@@ -396,7 +485,7 @@ class BioSim:
 
         if self._carn_map is not None:
             self._carn_map.set_data(np.reshape(self.animal_distribution['Carnivore'].values,
-                                                     newshape=(self._island.map_rows, self._island.map_columns)))
+                                               newshape=(self._island.map_rows, self._island.map_columns)))
         else:
             self._carn_map = self._carn_map_ax.imshow(np.reshape(self.animal_distribution[
                                                                      'Carnivore'].values,
@@ -407,7 +496,8 @@ class BioSim:
                          orientation='vertical', fraction=0.05)
 
     def _save_graphics(self):
-        """Saves graphics to file if file name given."""
+        """Saves graphics to file if file name given.
+        """
 
         if self._img_base is None:
             return
