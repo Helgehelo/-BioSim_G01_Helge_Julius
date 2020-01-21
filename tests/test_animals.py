@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-__author__ = 'Helge Helo Klemetsdal'
-__email__ = 'hegkleme@nmbu.no'
+__author__ = 'Helge Helo Klemetsdal, Adam Julius Olof Kviman'
+__email__ = 'hegkleme@nmbu.no, juliukvi@nmbu.no'
 from biosim.animals import Herb, Carn
 import pytest
 import numpy as np
@@ -315,18 +315,6 @@ class TestAnimal:
         alpha = 0.01
         assert p_value1 > alpha
         assert p_value2 > alpha
-
-    def test_sorting_list_by_fitness(self, herb_list, carn_list):
-        herb_list = herb_list
-        carn_list = carn_list
-        herb_list.sort(key=lambda x: x.fitness, reverse=True)
-        carn_list.sort(key=lambda x: x.fitness, reverse=True)
-        fit_list_herb = [h.fitness for h in herb_list]
-        fit_list_carn = [c.fitness for c in carn_list]
-        assert all([fit_1 > fit_2 for fit_1, fit_2 in
-                    zip(fit_list_herb[:-1], fit_list_herb[1:])])
-        assert all([fit_1 > fit_2 for fit_1, fit_2 in
-                    zip(fit_list_carn[:-1], fit_list_carn[1:])])
 
 
 class TestHerbivore:
