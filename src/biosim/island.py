@@ -1,18 +1,19 @@
+# -*- coding: utf-8 -*-
 
-from biosim.landscape import *
-from biosim.animals import *
+__author__ = "Helge Helo Klemetsdal, Adam Julius Olof Kviman"
+__email__ = "hegkleme@nmbu.no, juliukvi@nmbu.no"
 
+from .landscape import Ocean, Mountain, Jungle, Savannah, Desert
+from .animals import Herb, Carn
 
 class Island:
     """An island map with landscape cells and animals.
-
-    More description.
 
     Parameters
     ----------
     island_map : string
         A multiline string with letters mapping to landscape type.
-    ini_pop : dict
+    ini_pop : list
         An initial population of animals placed on the island
 
     Attributes
@@ -32,21 +33,29 @@ class Island:
     ValueError
         If the island is not surrounded by ocean.
     """
+
     def __init__(self, island_map, ini_pop=None):
         self.map_list = []
         self.map_columns = len(island_map.splitlines()[0])
         self.map_rows = len(island_map.splitlines())
-        map_dict = {"O": Ocean, "S": Savannah, "M": Mountain, "J": Jungle, "D": Desert}
+        map_dict = {
+            "O": Ocean,
+            "S": Savannah,
+            "M": Mountain,
+            "J": Jungle,
+            "D": Desert,
+        }
         for line in island_map.splitlines():
             if len(line) != self.map_columns:
                 raise ValueError("Island map not rectangular")
             placeholder_list = []
             for nature_square_char in line:
                 try:
-                    placeholder_list.append(map_dict[nature_square_char]()) # Creates nature objects
+                    placeholder_list.append(map_dict[nature_square_char]())
                 except KeyError:
-                    raise ValueError("Island map string contains invalid"
-                                     "character")
+                    raise ValueError(
+                        "Island map string contains invalid" "character"
+                    )
             self.map_list.append(placeholder_list)
         # Checks so that Ocean squares are on edges of map
         for nature_square in self.map_list[0]:
@@ -59,17 +68,19 @@ class Island:
             if not isinstance(self.map_list[nature_square][0], Ocean):
                 raise ValueError("Island not surrounded by ocean")
         for nature_square in range(len(self.map_list)):
-            if not isinstance(self.map_list[nature_square][len(self.map_list[0]) - 1], Ocean):
+            if not isinstance(
+                self.map_list[nature_square][len(self.map_list[0]) - 1], Ocean
+            ):
                 raise ValueError("Island not surrounded by ocean")
-        if ini_pop:  # If an initial population is provided right away
-            self.add_population(population=ini_pop)  # Call the add_population method
+        if ini_pop:
+            self.add_population(population=ini_pop)
 
     def add_population(self, population):
         """Adds a population of animals to a given location on the island.
         Parameters
         ----------
-        population : dict
-            Dictionary with location and animal population
+        population : list
+            List with dictionary that contains and animal population location.
 
         Raises
         ------
@@ -137,8 +148,8 @@ class Island:
 
     def migration(self):
         """Migrates all animals that shall migrate.
-        The animals that migrate are removed from their current cell position,
-        and added to the cell that they are supposed to move to. This is done
+        The animals that migrate are removed from their current square,
+        and added to the square that they are supposed to move to. This is done
         by accessing the lists on each cell in which the animals that are
         supposed to migrate are stored.
         """
@@ -182,8 +193,14 @@ class Island:
         for row in range(self.map_rows):
             for column in range(self.map_columns):
                 nature_square = self.map_list[row][column]
-                animal_count_list.append([row, column, nature_square.herbivore_number(),
-                                          nature_square.carnivore_number()])
+                animal_count_list.append(
+                    [
+                        row,
+                        column,
+                        nature_square.herbivore_number(),
+                        nature_square.carnivore_number(),
+                    ]
+                )
         return animal_count_list
 
     def count_animals(self):
